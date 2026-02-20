@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusGlow</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- TOAST -->
+  <div class="toast" v-if="toast" :key="toastKey">{{ toastEmoji }} {{ toast }}</div>
+
+
+  <!-- AUTH PAGE -->
+  <div class="auth-page" v-if="view==='auth'">
+
+    <!-- Left decorative panel -->
+    <div class="auth-left">
+      <div class="auth-deco auth-deco-1"></div>
+      <div class="auth-deco auth-deco-2"></div>
+      <div class="auth-left-content">
+        <div class="auth-brand-large">Campus<span>Glow</span></div>
+        <div class="auth-brand-sub">Your campus store</div>
+        <div class="auth-features">
+          <div class="auth-feature">
+            <div class="auth-feature-icon">📚</div>
+            <div class="auth-feature-text"><strong>Stationery Essentials</strong><span>Notebooks, pens, art supplies & more</span></div>
+          </div>
+          <div class="auth-feature">
+            <div class="auth-feature-icon">🏠</div>
+            <div class="auth-feature-text"><strong>Homeware & Dorm</strong><span>Decor, LED lights & electrical goods</span></div>
+          </div>
+          <div class="auth-feature">
+            <div class="auth-feature-icon">🍳</div>
+            <div class="auth-feature-text"><strong>Kitchenware</strong><span>Pots, cutlery & cleaning supplies</span></div>
+          </div>
+          <div class="auth-feature">
+            <div class="auth-feature-icon">🚚</div>
+            <div class="auth-feature-text"><strong>Free Delivery</strong><span>On all orders</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right form panel -->
+    <div class="auth-right">
+      <div class="auth-theme-row">
+        <button class="theme-btn" @click="toggleTheme">{{ dark ? '☀️' : '🌙' }}</button>
+      </div>
+
+      <div class="auth-header">
+        <h2>{{ authTab==='login' ? 'Welcome back 👋' : 'Join CampusGlow ✨' }}</h2>
+        <p>{{ authTab==='login' ? 'Sign in to continue shopping.' : 'Create your free account today.' }}</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab" :class="{active:authTab==='login'}" @click="switchTab('login')">Sign In</button>
+        <button class="auth-tab" :class="{active:authTab==='register'}" @click="switchTab('register')">Create Account</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div v-if="authTab==='login'" class="auth-form">
+        <div class="auth-existing">
+          <div class="auth-existing-title">Existing accounts — click to fill</div>
+          <div v-for="u in existingUsers" :key="u.email" class="demo-user" @click="fillLogin(u)">
+            <div class="demo-avatar" :style="{background:u.color}">{{ u.avatar }}</div>
+            <div class="demo-user-info">
+              <div class="demo-user-name">{{ u.firstName }} {{ u.lastName }}</div>
+              <div class="demo-user-email">{{ u.email }}</div>
+            </div>
+            <button class="demo-use-btn">Use →</button>
+          </div>
+        </div>
+        <div class="auth-divider">or enter manually</div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">📧</span>
+            <input class="auth-input" :class="{error:loginErr}" v-model="loginForm.email" type="email" placeholder="your@email.com" @keyup.enter="doLogin" :disabled="isLoading"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">🔒</span>
+            <input class="auth-input" :class="{error:loginErr}" v-model="loginForm.password" :type="showLoginPw?'text':'password'" placeholder="••••••••" @keyup.enter="doLogin" :disabled="isLoading"/>
+            <button class="pw-toggle" @click="showLoginPw=!showLoginPw">{{ showLoginPw?'🙈':'👁️' }}</button>
+          </div>
+        </div>
+        <div class="auth-error" v-if="loginErr">⚠️ {{ loginErr }}</div>
+        <button class="auth-submit" @click="doLogin" :disabled="!loginForm.email||!loginForm.password||isLoading">
+          <template v-if="isLoading"><span class="spinner"></span> Signing in…</template>
+          <template v-else>Sign In →</template>
+        </button>
+        <div style="text-align:center;font-size:0.84rem;color:var(--text2)">
+          No account? <span style="color:var(--accent);cursor:pointer;font-weight:600" @click="switchTab('register')">Create one free</span>
+        </div>
+      </div>
+
+      <!-- REGISTER -->
+      <div v-if="authTab==='register'" class="auth-form">
+        <div class="form-group">
+          <label class="form-label">Choose an Avatar</label>
+          <div class="avatar-pick">
+            <div v-for="av in avatarOptions" :key="av.emoji" class="avatar-opt"
+              :class="{selected:regForm.avatar===av.emoji}"
+              :style="{borderColor:regForm.avatar===av.emoji?av.color:''}"
+              @click="regForm.avatar=av.emoji;regForm.color=av.color">{{ av.emoji }}</div>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">First Name</label>
+            <div class="auth-input-wrap"><span class="auth-input-icon">👤</span>
+              <input class="auth-input" v-model="regForm.firstName" placeholder="Jane" style="padding-left:42px"/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <div class="auth-input-wrap"><span class="auth-input-icon">👤</span>
+              <input class="auth-input" v-model="regForm.lastName" placeholder="Smith" style="padding-left:42px"/>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <div class="auth-input-wrap"><span class="auth-input-icon">📧</span>
+            <input class="auth-input" :class="{error:regErrors.email}" v-model="regForm.email" type="email" placeholder="jane@email.com"/>
+          </div>
+          <div class="auth-error" v-if="regErrors.email">⚠️ {{ regErrors.email }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="auth-input-wrap"><span class="auth-input-icon">🔒</span>
+            <input class="auth-input" v-model="regForm.password" :type="showRegPw?'text':'password'" placeholder="Min 6 characters"/>
+            <button class="pw-toggle" @click="showRegPw=!showRegPw">{{ showRegPw?'🙈':'👁️' }}</button>
+          </div>
+          <div class="strength-bar"><div class="strength-fill" :style="{width:pwStrength.pct+'%',background:pwStrength.color}"></div></div>
+          <div class="strength-label">{{ pwStrength.label }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <div class="auth-input-wrap"><span class="auth-input-icon">🔒</span>
+            <input class="auth-input" :class="{error:regErrors.confirm}" v-model="regForm.confirm" :type="showRegPw?'text':'password'" placeholder="Repeat password"/>
+          </div>
+          <div class="auth-error" v-if="regErrors.confirm">⚠️ {{ regErrors.confirm }}</div>
+        </div>
+        <label class="auth-agree">
+          <input type="checkbox" v-model="regForm.agree"/>
+          I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+        </label>
+        <div class="auth-error" v-if="regErrors.general">⚠️ {{ regErrors.general }}</div>
+        <button class="auth-submit" @click="doRegister" :disabled="!canRegister||isLoading">
+          <template v-if="isLoading"><span class="spinner"></span> Creating account…</template>
+          <template v-else>Create My Account →</template>
+        </button>
+        <div style="text-align:center;font-size:0.84rem;color:var(--text2)">
+          Already have an account? <span style="color:var(--accent);cursor:pointer;font-weight:600" @click="switchTab('login')">Sign in</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- END AUTH -->
+
+
+  <!-- NAVIGATION -->
+  <nav v-if="view!=='auth'">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="hamburger-btn" @click="mobileDrawerOpen=true" title="Browse categories">☰</button>
+      <div class="nav-brand">
+        <div class="nav-brand-dot"></div>
+        CampusGlow
+      </div>
+    </div>
+    <div class="nav-right">
+      <button class="theme-btn" @click="toggleTheme" :title="dark?'Light mode':'Dark mode'">{{ dark?'☀️':'🌙' }}</button>
+      <button class="cart-btn" @click="view='cart'">
+        🛒 Cart <span class="cart-badge">{{ totalItems }}</span>
+      </button>
+      <div class="user-pill" v-if="currentUser" @click="userMenuOpen=!userMenuOpen">
+        <div class="user-pill-avatar" :style="{background:currentUser.color}">{{ currentUser.avatar }}</div>
+        <span class="user-pill-name">{{ currentUser.firstName }}</span>
+        <span style="font-size:0.65rem;color:var(--text2)">▼</span>
+        <div class="user-dropdown" v-if="userMenuOpen" @click.stop>
+          <div style="padding:10px 12px 8px;border-bottom:1px solid var(--border);margin-bottom:4px">
+            <div style="font-weight:700;font-size:0.9rem">{{ currentUser.firstName }} {{ currentUser.lastName }}</div>
+            <div style="font-size:0.77rem;color:var(--text2)">{{ currentUser.email }}</div>
+          </div>
+          <button class="user-dropdown-item" @click="view='shop';userMenuOpen=false">🏪 Shop</button>
+          <button class="user-dropdown-item" @click="view='profile';userMenuOpen=false">👤 My Profile</button>
+          <button class="user-dropdown-item" @click="view='orders';userMenuOpen=false">📦 My Orders</button>
+          <div class="user-dropdown-sep"></div>
+          <button class="user-dropdown-item danger" @click="logout">🚪 Sign Out</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile drawer -->
+  <template v-if="view==='shop' && mobileDrawerOpen">
+    <div class="mobile-drawer-overlay" @click="mobileDrawerOpen=false">
+      <div class="mobile-drawer" @click.stop>
+        <div class="mobile-drawer-head">
+          Browse Categories
+          <button class="close-btn" @click="mobileDrawerOpen=false">✕</button>
+        </div>
+        <div style="padding:12px 0">
+          <div v-for="cat in categories" :key="cat.id">
+            <div class="cat-header" :class="{active:activeCat===cat.id}" @click="toggleCat(cat.id)">
+              <div class="cat-header-left"><span class="cat-icon">{{ cat.icon }}</span><span class="cat-name">{{ cat.name }}</span></div>
+              <span class="cat-arrow" :class="{open:openCats[cat.id]}">▼</span>
+            </div>
+            <div class="sub-menu" :style="{maxHeight:openCats[cat.id]?'300px':'0'}">
+              <div v-for="sub in cat.subs" :key="sub.id" class="sub-item" :class="{active:activeSub===sub.id}" @click="selectSub(cat.id,sub.id)">
+                {{ sub.icon }} {{ sub.name }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+
+  <!-- PROFILE PAGE -->
+  <div class="main-wrap" v-if="view==='profile'">
+    <div class="content checkout-wrap" style="margin:0 auto">
+      <div class="page-head">
+        <div class="breadcrumb"><span @click="view='shop'" style="cursor:pointer">← Back to Shop</span></div>
+        <h1>My Profile 👤</h1>
+      </div>
+      <div class="checkout-card" style="display:flex;align-items:center;gap:24px;margin-bottom:20px">
+        <div style="width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;flex-shrink:0" :style="{background:currentUser.color}">{{ currentUser.avatar }}</div>
+        <div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;color:var(--deep)">{{ currentUser.firstName }} {{ currentUser.lastName }}</div>
+          <div style="color:var(--text2);margin-top:4px">{{ currentUser.email }}</div>
+          <div style="margin-top:8px;display:flex;gap:8px">
+            <span class="tag-chip" style="cursor:default">🛒 {{ currentUser.orders||0 }} orders</span>
+            <span class="tag-chip" style="cursor:default;color:var(--green)">✓ Verified</span>
+          </div>
+        </div>
+      </div>
+      <div class="checkout-card">
+        <h3>Account Details</h3>
+        <div class="form-grid" style="margin-top:4px">
+          <div class="form-group"><label class="form-label">First Name</label><input class="form-input" v-model="currentUser.firstName"/></div>
+          <div class="form-group"><label class="form-label">Last Name</label><input class="form-input" v-model="currentUser.lastName"/></div>
+          <div class="form-group full"><label class="form-label">Email</label><input class="form-input" v-model="currentUser.email" type="email"/></div>
+        </div>
+        <div class="btn-row"><button class="next-btn" @click="saveProfile">Save Changes</button></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ORDERS PAGE -->
+  <div class="main-wrap" v-if="view==='orders'">
+    <div class="content checkout-wrap" style="margin:0 auto">
+      <div class="page-head">
+        <div class="breadcrumb"><span @click="view='shop'" style="cursor:pointer">← Back to Shop</span></div>
+        <h1>My Orders 📦</h1>
+      </div>
+      <div class="checkout-card" v-if="pastOrders.length===0">
+        <div style="text-align:center;padding:40px 0;color:var(--text2)">
+          <div style="font-size:3rem;margin-bottom:12px">📦</div>
+          <p>No orders yet. Start shopping!</p>
+          <button class="next-btn" style="margin-top:16px" @click="view='shop'">Browse Products</button>
+        </div>
+      </div>
+      <div class="checkout-card" v-for="o in pastOrders" :key="o.num" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <div style="font-weight:700;font-size:1rem">Order {{ o.num }}</div>
+            <div style="font-size:0.8rem;color:var(--text2)">{{ o.date }}</div>
+          </div>
+          <span style="background:var(--green);color:white;border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:700">Delivered</span>
+        </div>
+        <div v-for="item in o.items" :key="item.id" style="display:flex;justify-content:space-between;font-size:0.88rem;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>{{ item.emoji }} {{ item.name }} × {{ item.qty }}</span>
+          <span style="color:var(--accent);font-weight:600">R{{ (item.price*item.qty).toFixed(2) }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;margin-top:12px">
+          <span>Total</span><span style="color:var(--accent)">R{{ o.total.toFixed(2) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- SHOP PAGE -->
+  <div class="main-wrap" v-if="view==='shop'">
+
+    <!-- Desktop sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-title">Shop by Category</div>
+      <div v-for="cat in categories" :key="cat.id">
+        <div class="cat-header" :class="{active:activeCat===cat.id}" @click="toggleCat(cat.id)">
+          <div class="cat-header-left"><span class="cat-icon">{{ cat.icon }}</span><span class="cat-name">{{ cat.name }}</span></div>
+          <span class="cat-arrow" :class="{open:openCats[cat.id]}">▼</span>
+        </div>
+        <div class="sub-menu" :style="{maxHeight:openCats[cat.id]?'300px':'0'}">
+          <div v-for="sub in cat.subs" :key="sub.id" class="sub-item" :class="{active:activeSub===sub.id}" @click="selectSub(cat.id,sub.id)">
+            {{ sub.icon }} {{ sub.name }}
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Products -->
+    <main class="content">
+
+      <!-- HOME VIEW -->
+      <div v-if="!activeCat">
+        <!-- Welcome hero band -->
+        <div class="welcome-band">
+          <div class="welcome-glow">🌿</div>
+          <h1>Welcome to CampusGlow 🌱</h1>
+          <p>Quality goods for students, home & kitchen — all in one place.</p>
+        </div>
+
+        <div v-for="cat in categories" :key="cat.id" style="margin-bottom:40px">
+          <div :class="'cat-hero '+cat.id" style="margin-bottom:22px">
+            <div class="cat-hero-icon">{{ cat.icon }}</div>
+            <h2>{{ cat.name }}</h2><p>{{ cat.desc }}</p>
+          </div>
+          <div class="products-grid">
+            <div v-for="product in featuredProducts(cat.id)" :key="product.id" class="product-card">
+            <div class="product-img">
+              <img v-if="product.image" :src="product.image" :alt="product.name" style="width:100%;height:100%;object-fit:cover;"/>
+              <span v-else>{{ product.emoji }}</span>
+              <div v-if="stockBadge(product)" class="stock-badge" :class="stockBadge(product).cls">{{ stockBadge(product).label }}</div>
+            </div>
+              <div class="product-info">
+                <div class="product-tag">{{ product.subName }}</div>
+                <div class="product-name">{{ product.name }}</div>
+                <div class="product-desc">{{ product.desc }}</div>
+                <div class="product-footer">
+                  <div class="product-price">R{{ product.price.toFixed(2) }}</div>
+                  <button class="add-btn" @click="addToCart(product)" :disabled="product.stock==='out'">
+                    {{ product.stock==='out' ? 'Out of stock' : '+ Add' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CATEGORY/SUB VIEW -->
+      <div v-else>
+        <div class="breadcrumb">
+          <span @click="activeCat=null;activeSub=null" style="cursor:pointer">All</span>
+          <span>›</span>
+          <span @click="activeSub=null" style="cursor:pointer">{{ currentCat.name }}</span>
+          <template v-if="activeSub"><span>›</span><span>{{ currentSub.name }}</span></template>
+        </div>
+        <div :class="'cat-hero '+activeCat" style="margin-bottom:26px">
+          <div class="cat-hero-icon">{{ currentCat.icon }}</div>
+          <h2>{{ currentSub ? currentSub.name : currentCat.name }}</h2>
+          <p>{{ currentCat.desc }}</p>
+        </div>
+        <div v-if="!activeSub" style="margin-bottom:22px">
+          <span v-for="sub in currentCat.subs" :key="sub.id" class="tag-chip" @click="activeSub=sub.id">{{ sub.icon }} {{ sub.name }}</span>
+        </div>
+        <div class="sub-section-title" v-if="filteredProducts.length">{{ currentSub ? currentSub.name : 'All '+currentCat.name }}</div>
+        <div class="products-grid">
+          <div v-for="product in filteredProducts" :key="product.id" class="product-card">
+          <div class="product-img">
+            <img v-if="product.image" :src="product.image" :alt="product.name" style="width:100%;height:100%;object-fit:cover;"/>
+            <span v-else>{{ product.emoji }}</span>
+              <div v-if="stockBadge(product)" class="stock-badge" :class="stockBadge(product).cls">{{ stockBadge(product).label }}</div>
+          </div>
+            <div class="product-info">
+              <div class="product-tag">{{ product.subName }}</div>
+              <div class="product-name">{{ product.name }}</div>
+              <div class="product-desc">{{ product.desc }}</div>
+              <div class="product-footer">
+                <div class="product-price">R{{ product.price.toFixed(2) }}</div>
+                <button class="add-btn" @click="addToCart(product)" :disabled="product.stock==='out'">
+                  {{ product.stock==='out' ? 'Out of stock' : '+ Add' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+
+  <!-- CART PAGE -->
+  <div class="main-wrap" v-if="view==='cart'">
+    <div class="content checkout-wrap" style="margin:0 auto">
+      <div class="page-head">
+        <div class="breadcrumb"><span @click="view='shop'" style="cursor:pointer">← Continue Shopping</span></div>
+        <h1>Your Cart 🛒</h1>
+      </div>
+
+      <!-- Undo bar -->
+      <div class="undo-bar" v-if="removedItem">
+        <span>🗑 <strong>{{ removedItem.name }}</strong> removed</span>
+        <button class="undo-btn" @click="undoRemove">Undo</button>
+      </div>
+
+      <div class="checkout-card" v-if="cart.length===0 && !removedItem">
+        <div style="text-align:center;padding:48px 0;color:var(--text2)">
+          <div style="font-size:3rem;margin-bottom:12px">🛒</div>
+          <p>Your cart is empty.</p>
+          <button class="next-btn" style="margin-top:16px" @click="view='shop'">Start Shopping</button>
+        </div>
+      </div>
+
+      <div v-if="cart.length>0">
+        <div class="checkout-card">
+          <div class="cart-item" v-for="item in cart" :key="item.id">
+            <div class="cart-item-img">{{ item.emoji }}</div>
+            <div class="cart-item-info">
+              <div class="cart-item-name">{{ item.name }}</div>
+              <div class="cart-item-price">R{{ (item.price*item.qty).toFixed(2) }}</div>
+              <div class="cart-item-controls">
+                <button class="qty-btn" @click="updateQty(item,-1)">−</button>
+                <span class="qty-display">{{ item.qty }}</span>
+                <button class="qty-btn" @click="updateQty(item,1)" :disabled="isAtMaxQty(item)">+</button>
+                <button class="remove-btn" @click="removeFromCart(item)" title="Remove">🗑</button>
+              </div>
+              <div class="qty-max-warn" v-if="isAtMaxQty(item)">Max {{ MAX_QTY }} per item</div>
+            </div>
+          </div>
+        </div>
+        <div class="checkout-card">
+          <h3>Order Summary</h3>
+          <div class="order-summary-line"><span>Subtotal ({{ totalItems }} items)</span><span>R{{ subtotal.toFixed(2) }}</span></div>
+          <div class="order-summary-line"><span>Shipping</span><span style="color:var(--green)">Free 🎉</span></div>
+          <div class="order-summary-line total"><span>Total</span><span style="color:var(--accent)">R{{ subtotal.toFixed(2) }}</span></div>
+        </div>
+        <div class="btn-row">
+          <button class="back-btn" @click="view='shop'">← Continue Shopping</button>
+          <button class="next-btn" @click="startCheckout">Proceed to Checkout →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECKOUT PAGE -->
+  <div class="main-wrap" v-if="view==='checkout'">
+    <div class="content" style="max-width:1100px;margin:0 auto">
+      <div class="page-head"><h1>Checkout</h1></div>
+
+      <div class="checkout-layout">
+
+        <!-- Left: form steps -->
+        <div class="checkout-main">
+          <div class="checkout-steps">
+            <div class="checkout-step" :class="{active:checkoutStep===1,done:checkoutStep>1}">
+              <span class="step-num">{{ checkoutStep>1?'✓':'1' }}</span> Delivery
+            </div>
+            <div class="checkout-step" :class="{active:checkoutStep===2,done:checkoutStep>2}">
+              <span class="step-num">{{ checkoutStep>2?'✓':'2' }}</span> Payment
+            </div>
+            <div class="checkout-step" :class="{active:checkoutStep===3}">
+              <span class="step-num">3</span> Review
+            </div>
+          </div>
+
+          <!-- STEP 1 -->
+          <div v-if="checkoutStep===1">
+            <div class="checkout-card">
+              <h3>📦 Delivery Details</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">First Name *</label>
+                  <input class="form-input" :class="{invalid:fieldErrors.firstName,valid:touched.firstName&&form.firstName&&!fieldErrors.firstName}" v-model="form.firstName" placeholder="Jane" @blur="touchField('firstName')"/>
+                  <div class="field-error" v-if="fieldErrors.firstName">⚠ {{ fieldErrors.firstName }}</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Last Name *</label>
+                  <input class="form-input" :class="{invalid:fieldErrors.lastName,valid:touched.lastName&&form.lastName&&!fieldErrors.lastName}" v-model="form.lastName" placeholder="Smith" @blur="touchField('lastName')"/>
+                  <div class="field-error" v-if="fieldErrors.lastName">⚠ {{ fieldErrors.lastName }}</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Email *</label>
+                  <input class="form-input" :class="{invalid:fieldErrors.email,valid:touched.email&&form.email&&!fieldErrors.email}" v-model="form.email" placeholder="jane@email.com" type="email" @blur="touchField('email')"/>
+                  <div class="field-error" v-if="fieldErrors.email">⚠ {{ fieldErrors.email }}</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Phone</label>
+                  <input class="form-input" :class="{invalid:fieldErrors.phone}" v-model="form.phone" placeholder="+27 ..." @blur="touchField('phone')"/>
+                  <div class="field-error" v-if="fieldErrors.phone">⚠ {{ fieldErrors.phone }}</div>
+                  <div class="field-hint" v-else>Optional — for delivery updates</div>
+                </div>
+                <div class="form-group full">
+                  <label class="form-label">Street Address *</label>
+                  <input class="form-input" :class="{invalid:fieldErrors.address,valid:touched.address&&form.address}" v-model="form.address" placeholder="123 Main Road" @blur="touchField('address')"/>
+                  <div class="field-error" v-if="fieldErrors.address">⚠ {{ fieldErrors.address }}</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">City *</label>
+                  <input class="form-input" :class="{invalid:fieldErrors.city,valid:touched.city&&form.city}" v-model="form.city" placeholder="Durban" @blur="touchField('city')"/>
+                  <div class="field-error" v-if="fieldErrors.city">⚠ {{ fieldErrors.city }}</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Postal Code</label>
+                  <input class="form-input" v-model="form.postal" placeholder="4001"/>
+                </div>
+                <div class="form-group full">
+                  <label class="form-label">Province *</label>
+                  <select class="form-input" :class="{invalid:fieldErrors.province,valid:touched.province&&form.province}" v-model="form.province" @blur="touchField('province')">
+                    <option value="">Select province...</option>
+                    <option>KwaZulu-Natal</option><option>Gauteng</option>
+                    <option>Western Cape</option><option>Eastern Cape</option>
+                    <option>Free State</option><option>Limpopo</option>
+                    <option>Mpumalanga</option><option>North West</option>
+                    <option>Northern Cape</option>
+                  </select>
+                  <div class="field-error" v-if="fieldErrors.province">⚠ {{ fieldErrors.province }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="back-btn" @click="view='cart'">← Back to Cart</button>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <button class="next-btn" @click="tryNextStep">Continue to Payment →</button>
+                <div v-if="!deliveryValid && missingDeliveryFields.length" style="font-size:0.74rem;color:var(--text2);text-align:right">
+                  Still needed: {{ missingDeliveryFields.join(', ') }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2 -->
+          <div v-if="checkoutStep===2">
+            <div class="checkout-card">
+              <h3>💳 Payment Method</h3>
+              <div class="payment-methods">
+                <div v-for="pm in paymentMethods" :key="pm.id" class="payment-method" :class="{selected:form.paymentMethod===pm.id}" @click="form.paymentMethod=pm.id">
+                  <div class="payment-method-icon">{{ pm.icon }}</div>
+                  <div class="payment-method-name">{{ pm.name }}</div>
+                </div>
+              </div>
+              <div v-if="form.paymentMethod==='card'" class="form-grid" style="margin-top:14px">
+                <div class="form-group full"><label class="form-label">Card Number</label>
+                  <input class="form-input" v-model="form.cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" @input="formatCard"/>
+                </div>
+                <div class="form-group"><label class="form-label">Expiry</label>
+                  <input class="form-input" v-model="form.cardExpiry" placeholder="MM/YY" maxlength="5" @input="formatExpiry"/>
+                </div>
+                <div class="form-group"><label class="form-label">CVV</label>
+                  <input class="form-input" v-model="form.cardCvv" placeholder="123" maxlength="3" type="password"/>
+                </div>
+                <div class="form-group full"><label class="form-label">Name on Card</label>
+                  <input class="form-input" v-model="form.cardName" placeholder="Jane Smith"/>
+                </div>
+              </div>
+              <div v-if="form.paymentMethod==='eft'" style="margin-top:14px;padding:16px;background:var(--bg2);border-radius:10px;font-size:0.9rem;line-height:1.7;color:var(--text2)">
+                <strong style="color:var(--text)">Bank Transfer Details</strong><br>
+                Bank: Standard Bank &nbsp;|&nbsp; Account: 00123456789<br>Branch Code: 051001<br>Reference: Your order number (provided after review)
+              </div>
+              <div v-if="form.paymentMethod==='payfast'" style="margin-top:14px;padding:16px;background:var(--bg2);border-radius:10px;font-size:0.9rem;color:var(--text2)">
+                You'll be redirected to <strong style="color:var(--text)">PayFast</strong> to complete your payment securely.
+              </div>
+              <div v-if="form.paymentMethod==='cod'" style="margin-top:14px;padding:16px;background:var(--bg2);border-radius:10px;font-size:0.9rem;color:var(--text2)">
+                Pay in <strong style="color:var(--text)">cash</strong> when your order is delivered.
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="back-btn" @click="checkoutStep=1">← Back</button>
+              <button class="next-btn" @click="nextStep" :disabled="!paymentValid">Review Order →</button>
+            </div>
+          </div>
+
+          <!-- STEP 3 -->
+          <div v-if="checkoutStep===3">
+            <div class="checkout-card">
+              <h3>🧾 Order Review</h3>
+              <div class="order-summary-line" v-for="item in cart" :key="item.id">
+                <span>{{ item.emoji }} {{ item.name }} × {{ item.qty }}</span>
+                <span>R{{ (item.price*item.qty).toFixed(2) }}</span>
+              </div>
+              <div class="order-summary-line total"><span>Total</span><span style="color:var(--accent)">R{{ subtotal.toFixed(2) }}</span></div>
+            </div>
+            <div class="checkout-card">
+              <h3>📬 Delivery To</h3>
+              <p style="line-height:1.8;font-size:0.93rem;color:var(--text2)">
+                {{ form.firstName }} {{ form.lastName }}<br>
+                {{ form.address }}, {{ form.city }}, {{ form.province }} {{ form.postal }}<br>
+                {{ form.email }}<span v-if="form.phone"> | {{ form.phone }}</span>
+              </p>
+            </div>
+            <div class="checkout-card">
+              <h3>💳 Payment</h3>
+              <p style="color:var(--text2);font-size:0.93rem">
+                {{ paymentMethodLabel }}<span v-if="form.paymentMethod==='card'"> ending in {{ form.cardNumber.slice(-4) }}</span>
+              </p>
+            </div>
+            <div class="btn-row">
+              <button class="back-btn" @click="checkoutStep=2">← Back</button>
+              <button class="next-btn" @click="placeOrder" :disabled="isLoading">
+                <span v-if="isLoading" class="btn-loading"><span class="spinner"></span> Placing order…</span>
+                <span v-else>✅ Place Order</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: sticky order summary -->
+        <div class="checkout-summary-sidebar">
+          <h4>Order Summary</h4>
+          <div class="summary-item" v-for="item in cart" :key="item.id">
+            <div class="summary-item-left">
+              <span class="summary-item-emoji">{{ item.emoji }}</span>
+              <span class="summary-item-name">{{ item.name }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="summary-item-qty">{{ item.qty }}</span>
+              <span style="font-weight:600;font-size:0.86rem">R{{ (item.price*item.qty).toFixed(2) }}</span>
+            </div>
+          </div>
+          <div class="summary-total-row">
+            <span>Total</span>
+            <span style="color:var(--accent)">R{{ subtotal.toFixed(2) }}</span>
+          </div>
+          <div class="summary-free-ship">🚚 Free delivery included</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- SUCCESS PAGE -->
+  <div class="main-wrap" v-if="view==='success'">
+    <div class="content">
+      <div class="success-wrap">
+        <div class="success-icon">🌿</div>
+        <h2>Order Placed!</h2>
+        <p>Thank you for shopping with CampusGlow. You'll receive a confirmation email shortly.</p>
+        <div class="order-number">Order #{{ orderNumber }}</div>
+        <div class="success-actions">
+          <button class="next-btn" @click="view='orders'">📦 View My Orders</button>
+          <button class="back-btn" @click="resetApp" style="margin-right:0">Continue Shopping</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
