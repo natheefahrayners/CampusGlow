@@ -2,6 +2,7 @@ const { createApp, ref, computed, reactive, watch } = Vue;
 
 createApp({
   setup() {
+    const API_BASE = 'http://localhost:3000/api';
 
     // ── GLOBAL STATE ──
     const dark = ref(false);
@@ -48,6 +49,58 @@ createApp({
 
     const existingUsers = computed(() => userDB.value);
 
+    function normalizeUser(user) {
+      if (!user) return null;
+      return {
+        id: user.id ?? user.user_id ?? Date.now(),
+        firstName: user.firstName ?? user.first_name ?? '',
+        lastName: user.lastName ?? user.last_name ?? '',
+        email: user.email ?? '',
+        avatar: user.avatar ?? '🧑',
+        color: user.color ?? '#2e8b57',
+        orders: user.orders ?? user.orders_count ?? 0,
+      };
+    }
+
+    async function apiPost(path, payload) {
+      const res = await fetch(API_BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Request failed');
+      return body;
+    }
+
+    async function apiGet(path) {
+      const res = await fetch(API_BASE + path);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Request failed');
+      return body;
+    }
+
+    function saveSession(token, user) {
+      if (token) localStorage.setItem('token', token);
+      if (user) localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    function clearSession() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        currentUser.value = normalizeUser(JSON.parse(savedUser));
+        view.value = 'shop';
+        syncPastOrdersFromApi();
+      } catch {
+        clearSession();
+      }
+    }
+
     // ── AUTH FUNCTIONS ──
     function switchTab(tab) {
       authTab.value = tab;
@@ -63,15 +116,24 @@ createApp({
 
     async function doLogin() {
       isLoading.value = true;
-      await delay(600);
-      const u = userDB.value.find(u => u.email === loginForm.email && u.password === loginForm.password);
-      isLoading.value = false;
-      if (!u) { loginErr.value = 'Email or password is incorrect.'; return; }
-      currentUser.value = { ...u };
-      view.value = 'shop';
-      showToast('Welcome back, ' + u.firstName + '!', '👋');
+      loginErr.value = '';
+      try {
+        const data = await apiPost('/auth/login', {
+          email: loginForm.email,
+          password: loginForm.password
+        });
+        const u = normalizeUser(data.user);
+        currentUser.value = u;
+        saveSession(data.token, u);
+        await syncPastOrdersFromApi();
+        view.value = 'shop';
+        showToast('Welcome back, ' + u.firstName + '!', '👋');
+      } catch (error) {
+        loginErr.value = error.message || 'Email or password is incorrect.';
+      } finally {
+        isLoading.value = false;
+      }
     }
-
     const pwStrength = computed(() => {
       const pw = regForm.password;
       if (!pw) return { pct:0, color:'#ccc', label:'' };
@@ -98,19 +160,34 @@ createApp({
 
     async function doRegister() {
       regErrors.email = ''; regErrors.confirm = ''; regErrors.general = '';
-      if (userDB.value.find(u => u.email === regForm.email)) { regErrors.email = 'This email is already registered.'; return; }
       if (regForm.password !== regForm.confirm && regForm.confirm) { regErrors.confirm = 'Passwords do not match.'; return; }
       isLoading.value = true;
-      await delay(700);
-      isLoading.value = false;
-      const newUser = { id:Date.now(), firstName:regForm.firstName, lastName:regForm.lastName, email:regForm.email, password:regForm.password, avatar:regForm.avatar, color:regForm.color, orders:0 };
-      userDB.value.push(newUser);
-      currentUser.value = { ...newUser };
-      view.value = 'shop';
-      showToast('Account created! Welcome, ' + newUser.firstName + '!', '🌿');
+      try {
+        const data = await apiPost('/auth/register', {
+          firstName: regForm.firstName,
+          lastName: regForm.lastName,
+          email: regForm.email,
+          password: regForm.password,
+          avatar: regForm.avatar,
+          color: regForm.color
+        });
+        const newUser = normalizeUser(data.user);
+        userDB.value.push({ ...newUser, password: regForm.password });
+        currentUser.value = newUser;
+        saveSession(data.token, newUser);
+        pastOrders.value = [];
+        view.value = 'shop';
+        showToast('Account created! Welcome, ' + newUser.firstName + '!', '🌿');
+      } catch (error) {
+        const msg = error.message || 'Registration failed';
+        if (/already registered/i.test(msg)) regErrors.email = msg;
+        else regErrors.general = msg;
+      } finally {
+        isLoading.value = false;
+      }
     }
-
     function logout() {
+      clearSession();
       currentUser.value = null;
       cart.value = [];
       userMenuOpen.value = false;
@@ -122,6 +199,7 @@ createApp({
     function saveProfile() {
       const idx = userDB.value.findIndex(u => u.id === currentUser.value.id);
       if (idx >= 0) Object.assign(userDB.value[idx], { firstName:currentUser.value.firstName, lastName:currentUser.value.lastName, email:currentUser.value.email });
+      localStorage.setItem('user', JSON.stringify(currentUser.value));
       showToast('Profile saved!', '✅');
     }
 
@@ -261,6 +339,85 @@ createApp({
       { id:73, catId:'kitchenware',  subId:'cups & plates',  subName:'Cups & Plates',               emoji:'🍨',   name:'Coffee Mugs',                 image: 'images/mugs2.jpg',             desc:'350ml ceramic mug, microwave & dishwasher safe, 6 colours.',     price:29.99,    stock:'in'  },
       { id:74, catId:'kitchenware',  subId:'cups & plates',  subName:'Cups & Plates',               emoji:'🍨',   name:'Plates and Bowls Set(4)',     image: 'images/plates2.jpg',           desc:'Matching ceramic set, 4 bowls + 4 plates.',                      price:199.99,   stock:'in'}
     ]; 
+
+        const categoryMap = { 1:'stationary', 2:'homeware', 3:'kitchenware' };
+    const subcategoryMap = {
+      1:'books', 2:'pens', 3:'pencilcase', 4:'organizers',
+      5:'dorm-decor', 6:'bedroom', 7:'dorm-access', 8:'electrical',
+      9:'cutlery', 10:'cleaning', 11:'pots', 12:'storage', 13:'cups & plates'
+    };
+
+    function inferSubId(catId, p) {
+      const fallback = categories.find(c => c.id === catId)?.subs?.[0]?.id || 'books';
+      const text = `${p?.name || ''} ${p?.description || ''}`.toLowerCase();
+
+      if (catId === 'stationary') {
+        if (/book|notebook|planner|journal|sketch/i.test(text)) return 'books';
+        if (/pen|marker|highlighter|pencil/i.test(text)) return 'pens';
+        if (/case|pouch|bag|backpack/i.test(text)) return 'pencilcase';
+        if (/organizer|calendar|note/i.test(text)) return 'organizers';
+      }
+      if (catId === 'homeware') {
+        if (/poster|decor|plant|candle/i.test(text)) return 'dorm-decor';
+        if (/bed|duvet|mirror|cushion|rug|rack/i.test(text)) return 'bedroom';
+        if (/laundry|hook|waste|hanger/i.test(text)) return 'dorm-access';
+        if (/led|fan|kettle|cable|extension|headphone|phone|strip/i.test(text)) return 'electrical';
+      }
+      if (catId === 'kitchenware') {
+        if (/knife|utensil|spatula|spoon|cutlery/i.test(text)) return 'cutlery';
+        if (/sponge|mop|broom|plunger|brush|clean/i.test(text)) return 'cleaning';
+        if (/pot|pan|casserole/i.test(text)) return 'pots';
+        if (/jar|lunchbox|storage/i.test(text)) return 'storage';
+        if (/mug|plate|bowl|cup/i.test(text)) return 'cups & plates';
+      }
+      return fallback;
+    }
+
+    function mapApiProductToUi(p) {
+      const catId = categoryMap[p.category_id] || 'stationary';
+      const subId = subcategoryMap[p.subcategory_id] || inferSubId(catId, p);
+      const subName = categories.find(c => c.id === catId)?.subs?.find(s => s.id === subId)?.name || 'General';
+      const stockFromQty = Number(p.stock_quantity ?? 0) <= 0 ? 'out' : (Number(p.stock_quantity ?? 0) <= 5 ? 'low' : 'in');
+      return {
+        id: p.product_id ?? p.products_id,
+        catId,
+        subId,
+        subName,
+        emoji: p.emoji || 'U',
+        name: p.name,
+        image: p.image || p.image_url || '',
+        desc: p.description || '',
+        price: Number(p.price || 0),
+        stock: p.stock_status || stockFromQty
+      };
+    }
+    async function syncProductsFromApi() {
+      try {
+        const rows = await apiGet('/products');
+        if (!Array.isArray(rows) || !rows.length) return;
+        const mapped = rows.map(mapApiProductToUi).filter(p => p.name);
+        if (!mapped.length) return;
+        allProducts.splice(0, allProducts.length, ...mapped);
+      } catch {}
+    }
+
+    async function syncPastOrdersFromApi() {
+      if (!currentUser.value?.id) return;
+      try {
+        const rows = await apiGet('/orders');
+        if (!Array.isArray(rows)) return;
+        const mine = rows
+          .filter(o => Number(o.user_id) === Number(currentUser.value.id))
+          .sort((a, b) => Number(b.order_id) - Number(a.order_id))
+          .map(o => ({
+            num: o.order_number || `ORD-${o.order_id}`,
+            date: new Date(o.order_date || Date.now()).toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' }),
+            items: [],
+            total: Number(o.total_amount || 0)
+          }));
+        pastOrders.value = mine;
+      } catch {}
+    }
 
     function stockBadge(product) {
       if (product.stock === 'low') return { label:'Only a few left', cls:'low' };
@@ -403,14 +560,40 @@ createApp({
 
     async function placeOrder() {
       isLoading.value = true;
-      await delay(900);
-      isLoading.value = false;
-      orderNumber.value = 'CG-' + Math.floor(100000 + Math.random() * 900000);
-      const orderDate = new Date().toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' });
-      pastOrders.value.unshift({ num:orderNumber.value, date:orderDate, items:[...cart.value], total:subtotal.value });
-      if (currentUser.value) currentUser.value.orders = (currentUser.value.orders || 0) + 1;
-      cart.value = [];
-      view.value = 'success';
+      try {
+        if (!currentUser.value?.id) throw new Error('Please sign in first.');
+
+        const orderPayload = {
+          user_id: Number(currentUser.value.id),
+          total_amount: Number(subtotal.value),
+          status: 'processing',
+          items: cart.value.map(i => ({
+            product_id: Number(i.id),
+            quantity: Number(i.qty),
+            price: Number(i.price)
+          }))
+        };
+
+        const createdOrder = await apiPost('/orders', orderPayload);
+        await apiPost('/payments', {
+          order_id: createdOrder.order_id,
+          amount: Number(subtotal.value),
+          payment_method: form.paymentMethod,
+          status: 'completed'
+        });
+
+        orderNumber.value = createdOrder.order_number || ('ORD-' + createdOrder.order_id);
+        const orderDate = new Date(createdOrder.order_date || Date.now()).toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' });
+        pastOrders.value.unshift({ num:orderNumber.value, date:orderDate, items:[...cart.value], total:subtotal.value });
+        currentUser.value.orders = (currentUser.value.orders || 0) + 1;
+        localStorage.setItem('user', JSON.stringify(currentUser.value));
+        cart.value = [];
+        view.value = 'success';
+      } catch (error) {
+        showToast(error.message || 'Could not place order', '⚠');
+      } finally {
+        isLoading.value = false;
+      }
     }
 
     function resetApp() {
@@ -419,6 +602,7 @@ createApp({
     }
 
     function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+    syncProductsFromApi();
 
     // ── RETURN ──
     return {
@@ -442,3 +626,6 @@ createApp({
     };
   }
 }).mount('#app');
+
+
+
