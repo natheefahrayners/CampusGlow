@@ -1,38 +1,91 @@
 # CampusGlow
 
 ## About 
-CampusGlow is a student-focused e‑commerce platform that combines everyday student essentials with aesthetic room and study décor. The goal is to provide a convenient, affordable, and visually appealing shopping experience tailored specifically for campus life. By merging practical needs with lifestyle products, CampusGlow aims to become the go‑to online store for students seeking both functionality and style. 
+CampusGlow is a student-focused e-commerce platform designed to provide university students with easy access to academic essentials, room décor, homeware, and daily necessities. The platform combines a modern frontend interface with a secure backend system to allow users to browse products, add items to their cart, and complete a checkout process with a simulated payment system.
+
+The system is divided into two main parts:
+
+Frontend – provides the user interface and shopping experience.
+
+Backend – manages data, orders, and system functionality through APIs and database integration.
+
 
 ## Features
-- User registration amd logi
-- Add items to cart
-- Secure checkout system
-- Payment integration
-- Order confirmation system
-- Review order
-- Dark mode
+
+## Front-end
+-Product listing page
+-Product details view
+-Add to cart functionality
+-Shopping cart management
+-Checkout page
+-Responsive design
+-User-friendly interface
+
+## Back-end
+-REST API for products and orders
+-Cart and checkout processing
+-Payment simulation system
+-Database integration
+-Environment-based configuration
+-Order confirmation
+
 
 ## Technology used
+
+## Front-end
 - HTML
 - CSS
 - JavaScript
-- Node
+- VS Code Live Server
+
+## Back-end
+- Node.js 18+
+- MySQL
+- Nodemon
+
+## Tools
+- GitHub
+- VS Studio Code
+- Git Bash
+
 
 ## Installation
-Make sure the following are installed:
-- VSCode
-- GitHub
-- Live Server Extension in VSCode for front-end
-- Node.js for back-end
+1. Open GitBash and clone the repository
 
-You first clone the repository into your VSCode by opening a terminal and GitBash.
-Then the project will open in VSCode. After that you can run the website by opening 
-with live server. This will redirect you from VSCode to the website. Therefore, 
-the e-commerce website should be running locally in your browser. 
+2. Front-end Setup
+   - Open the front-end folder in VS Code
+   - Right-click index.html
+   - Click 'Open with Live Server'
+   - The website will open in your browser
+  
+3. Back-end Setup
+   - Open the back-end folder in the VS Code terminal
+   - Install independancies
+     npm install
+   - Create a .env file inside the backend folder
+   - Start the back-end server
+     npm run dev
+   - The backend will run on
+     http://localhost:3000/api
+   - Backend API Requirements
+   - The frontend expects these endpoints (base URL: http://localhost:3000/api):
+     POST /auth/login
+     POST /auth/register
+     GET /products
+     GET /orders
+     POST /orders
+     POST /payments
 
-After being in the website you will see a log in page where you can either create an 
-account or just sign in if you already have an account. Once log in is successful you 
-are allowed access to CampusGlow abd can start shopping for all your student needs. 
+
+   ## Usage
+   1. Start the back-end server
+   2. Open the front-end using Live Server
+   3. Browsw products
+   4. Add items to cart
+   5. Proceed to checkout
+   6. Complete payment
+   7. The order will be processed
+
 
 ## Author
 Lutfeeya Cupido
